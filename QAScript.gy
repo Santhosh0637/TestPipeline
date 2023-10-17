@@ -7,7 +7,7 @@ pipeline {
                 
                 cleanWs()
               
-                git branch: 'main', changelog: false, poll: false, url: 'https://github.com/santhoshissa/Addressbook.git'
+                git branch: 'main', changelog: false, poll: false, url: 'https://github.com/santhosh0637/TestPipeline.git'
               
             }
         }
