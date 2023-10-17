@@ -1,10 +1,82 @@
 pipeline {
     agent any
+
     stages {
-        stage('Hello') {
+        stage('Git Clone') {
             steps {
-                echo 'Hello World From Git'
+                
+                cleanWs()
+              
+                git branch: 'main', changelog: false, poll: false, url: 'https://github.com/santhoshissa/Addressbook.git'
+              
             }
         }
+        
+        
+        stage("maven build") {
+            steps {
+                echo 'mvn build'
+                bat 'mvn clean install'
+            }
+        }
+        stage('deploy') {
+            steps {
+                echo 'Apache tomcat deployment'
+                bat 'cd'
+                bat 'del "C:\\Users\\SANTHOSHSRINIVASAN\\Documents\\SW\\apache-tomcat-9.0.70\\webapps\\addressbook.war" '
+                bat 'copy target\\addressbook.war C:\\Users\\SANTHOSHSRINIVASAN\\Documents\\SW\\apache-tomcat-9.0.70\\webapps\\"'
+            }
+        }
+        stage('SAST - SonarQube') {
+            steps {
+                echo 'Code Quality Check using SonarQube'
+                bat 'mvn sonar:sonar -Dsonar.projectKey=Sonar -Dsonar.host.url=http://localhost:9090 -Dsonar.login=sqp_6b11ecf874a04ee7f113a6e801e659c2ac78ce8b'
+            }
+        }
+        stage("Selenium"){
+            steps {
+                bat 'cd'
+                bat 'copy C:\\Users\\SANTHOSHSRINIVASAN\\Documents\\SW\\SanthoshTest.jar C:\\ProgramData\\Jenkins\\.jenkins\\workspace\\Addressbook"'
+                bat "java -jar SanthoshTest.jar"
+                }
+        }
+        stage('performance test - Jmeter') {
+            steps {
+                
+                dir('api_performance') {
+                    bat "del /f testresults.jtl"
+    				bat "rd /s /q C:\\ProgramData\\Jenkins\\.jenkins\\workspace\\Addressbook\\api_performance\\report"
+    				bat "C:\\Users\\SANTHOSHSRINIVASAN\\Documents\\SW\\apache-jmeter-5.5\\apache-jmeter-5.5\\bin\\jmeter -n -t addressbook.jmx -l testresults.jtl -e -o ${WORKSPACE}//api_performance//report"
+                }
+            }
+            post {
+				always {
+					perfReport 'api_performance\\testresults.jtl'
+				}
+			}
+
+        }
+        stage('DAST scan - ZAP') {
+		
+            steps {
+				echo "DAST"
+				bat 'java -jar "C:\\Users\\SANTHOSHSRINIVASAN\\Documents\\SW\\ZAP_2.12.0\\zap-2.12.0.jar" -cmd -port 8082 -quickurl http://localhost:8283/addressbook/ -quickout C:\\Users\\SANTHOSHSRINIVASAN\\Documents\\SW\\ZAP_2.12.0\\reports\\report.html'
+            }
+          post {
+			always {
+				publishHTML([allowMissing: false, alwaysLinkToLastBuild: false, keepAll: false, reportDir: 'C:\\Users\\SANTHOSHSRINIVASAN\\Documents\\SW\\ZAP_2.12.0\\reports', reportFiles: 'report.html', reportName: 'HTML Report', reportTitles: '', useWrapperFileDirectly: true])
+				}	
+            
+			}
+			
+		}
+		
+        
+
     }
+    tools {
+        jdk 'jdk'
+        git 'git'
+    }
+
 }
